@@ -1,0 +1,149 @@
+---
+title: "Using mapDataAccess with Min.io"
+author: "Amanda White"
+date: "4/30/2021"
+#output: html_document
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Using mapDataAccess with Min.io}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Starting a Min.io Docker container
+
+Use the following docker command to start a Min.io server container. This is just for testing purposes, not for production!
+
+```docker run -p 9000:9000 minio/minio server /data```
+
+This will launch a container running Min.io server, with the default username and password set to `minioadmin`. Data uploaded to this container will be stored in the container's `/data` directory and will disappear when the container is stopped. If persistent data storage is desired, map a local drive to the container like this (substituting your directory for `/tmp/minio`):
+
+```docker run -p 9000:9000 -v /tmp/minio:/data minio/minio server /data```
+
+You can see the Min.io UI by opening http://localhost:9000.
+
+## Setting up the `mapDataAccess` Package
+
+The `mapDataAccess` package is on EMSL's GitLab server at https://code.emsl.pnl.gov/multiomics-analyses/mapdataaccess-lib. Install the package using:
+
+```{r eval=FALSE}
+remotes::install_gitlab("https://code.emsl.pnl.gov/multiomics-analyses/mapdataaccess-lib", 
+                        subdir="mapDataAccess", auth_token=[insert_your_gitlab_auth_token])
+```
+
+After installing the package you'll need to set up a local Python virtual environment and install the `minio` Python package. You need Python 3 (at least 3.6). Unfortunately, there's a bug in `minio` 7.0.1 affecting tags (but it's already fixed in the Github code). So until 7.0.2 is deployed to the pip servers we'll need to check out the code and install it from source.
+
+In the Terminal execute the following commands. This will create a subdirectory called `venv`, so first change to the appropriate parent directory. The Min.io code will be checked out from Github into the `/tmp` directory and installed from there.
+
+```
+python3 -m venv venv
+venv/bin/pip install --upgrade pip
+VENVDIR=$PWD/venv
+echo 'Python virtual environment: '$VENVDIR
+
+cd /tmp/
+git clone https://github.com/minio/minio-py
+cd minio-py
+$VENVDIR/bin/python setup.py install
+```
+
+## Using the `mapDataAccess` Package
+
+Now after all that work you can finally use the package! The data connection can be configured either using environment variables or a config file. The config file is a YAML file, see the example_minio_config.yml file in the Github repo or create a file like this:
+
+```
+type: minio
+endpoint: localhost:9000
+access_key: minioadmin
+secret_key: minioadmin
+bucket: map
+secure: False
+python_venv: [FILL IN $VENVDIR FROM ABOVE]
+verbose: true
+```
+
+To use environment variables execute the following in R:
+
+```{r eval=FALSE}
+Sys.setenv(
+  MAP_DATA_SOURCE="minio",
+  MINIO_ENDPOINT="localhost:9000",
+  MINIO_ACCESS_KEY="minioadmin",
+  MINIO_SECRET_KEY="minioadmin",
+  MINIO_BUCKET="map",
+  MINIO_SECURE="FALSE",
+  MAP_DATA_ACCESS_VERBOSE="TRUE",
+  MAP_PYTHON_VENV="[FILL IN $VENVDIR FROM ABOVE]")
+```
+
+### Set Up a Data Connection
+The first step of using the package is to create a `map_data_connection` object that will be used for all data access operations. If no config file is provided, it will look for the environment variables shown above.
+
+```{r eval=FALSE}
+con <- map_data_connection(config_file='INSERT CONFIG FILE HERE')
+
+# to use env vars:
+con2 <- map_data_connection()
+```
+
+When the connection is created it will look for a bucket (defined in the config or env variable) where all files will be saved. If the bucket does not exist, it will be created.
+
+### Storing Data
+The `put_data` method will save the data object provided and return a randomly generated UUID that can be used to retrieve it later. (This works the same regardless of whether the data storage mechanism is Min.io or a local directory.) The command below saves the example dataset `iris`.
+
+```{r eval=FALSE}
+id <- put_data(con, iris)
+```
+
+Note that this method takes an R object, not a file (e.g. CSV file) as input. The object is stored in binary form in Min.io.
+
+### Retrieving Data
+The `get_data` method will retrieve the data object via its the UUID returned by `put_data`. (This works the same regardless of whether the data storage mechanism is Min.io or a local directory.)
+
+```{r eval=FALSE}
+iris2 <- get_data(con, id)
+```
+
+### Deleting Data from Storage
+The `remove_data` method will delete the data object in storage. (This works the same regardless of whether the data storage mechanism is Min.io or a local directory.)
+
+```{r eval=FALSE}
+remove_data(con, id)
+```
+
+### Tags
+Min.io has the ability to store and retrieve file tags, and so `mapDataAccess` provides the `set_tags`, `get_tags` and `remove_tags` to manage tag storage. Tags are stored as a named list of key/value pairs as shown below.
+
+```{r eval=FALSE}
+t <- list(key1="value1", key2="value2")
+set_tags(con, id, tags)
+```
+
+When tags are retrieved, they are not guaranteed to be in the same order as when they are set, so it's important to access the tags list by name rather than index.
+
+```{r eval=FALSE}
+t2 <- get_tags(con, id)
+```
+
+The `set_tags` operation is replacing all existing tags with those provided, it is not *adding* tags. To add a tag to an existing set, retrieve the tags, add new tags and then set the tags with the entire list:
+
+```{r eval=FALSE}
+t3 <- get_tags(con, id)
+t3[["key3"]] <- "value3"
+set_tags(con, id, t3)
+```
+
+The `remove_tags` function will delete all tags associated with an ID:
+
+```{r eval=FALSE}
+remove_tags(con, id)
+```
+
+### Future Additions
+Potential future features to add:
+
+* Min.io has the ability to set policies to delete data after so much time has passed, but that is currently not utilized in the R code.
