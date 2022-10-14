@@ -2,7 +2,7 @@
 
 Functions in this package exist for 2 specific functionalities. 
 
-## **1) Pushing/pulling data from minio**
+## 1) Pushing/pulling data from minio
 
 These functions include: 
   * get_all_data_ids: extract all ids of objects in the minio bucket
@@ -16,7 +16,7 @@ These functions include:
 * remove_tags: delete tags from an object
 * set_tags: add tags to a minio object to track what the data is and where it came from
 
-## **2) MAP (multiomics analysis portal) specific functions
+## 2) MAP (multiomics analysis portal) specific functions
 
 The functions include:
   * is_edata: check if the data.frame is in the correct expression matrix format for pmartR 
