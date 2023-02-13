@@ -14,7 +14,6 @@
 #'
 #' @param config_file optional config file
 #'
-#' @return 
 #' @export
 #' @examples 
 #' \dontrun{

@@ -9,9 +9,6 @@ map_data_connection(config_file = NA)
 \arguments{
 \item{config_file}{optional config file}
 }
-\value{
-
-}
 \description{
 Construct data connection object from config file or environment variables
 }
