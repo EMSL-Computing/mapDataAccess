@@ -28,7 +28,7 @@ Construct a project edata object where only edata is required.
 library(pmartRdata)
 project_edata(projectname = "LipidToMode",
              datatype = "Lipidomics-Positive",
-             edata = pmartRdata::lipid_edata_pos,
+             edata = pmartRdata::lipid_pos_edata,
              edata_filename = "lip_edata")
 
 }

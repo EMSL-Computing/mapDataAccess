@@ -41,7 +41,7 @@
 #' library(pmartRdata)
 #' project_edata(projectname = "LipidToMode",
 #'              datatype = "Lipidomics-Positive",
-#'              edata = pmartRdata::lipid_edata_pos,
+#'              edata = pmartRdata::lipid_pos_edata,
 #'              edata_filename = "lip_edata")
 #' 
 #' }
@@ -164,9 +164,10 @@ project_omic <- function(projectname, datatype, edata, fdata, emeta = NULL,
 #' @param projectname Any string to name the project. All spaces and non-alphanumeric
 #'    characters will be removed to prevent issues with the visualizations. Required.
 #' @param objects List of all omic projects or all pmart midpoints at the same tab (normalization or statistics).
-#'    Mixing of projects and midpoints is not allowed. Must contain 2-5 objects. There can be
+#'    Mixing of projects and midpoints is not allowed. Must contain 2-6 objects. There can be
 #'    no more than 2 metabolomics (1 of: NMR or GC/LC-MS), no more than 2 lipidomics datasets, 
-#'    and no more than 1 proteomics (peptide or protein) dataset. Required. 
+#'    no more than 1 proteomics (peptide or protein) dataset, and no more than 1
+#'    transcriptomics dataset. Required. 
 #' @param fmeta Must be a dataframe or data table. If not provided, users can built it in 
 #'    ipmart. Default is NULL. 
 #'
@@ -190,10 +191,10 @@ project_omic <- function(projectname, datatype, edata, fdata, emeta = NULL,
 #' # Make a lipidomics project
 #' lipid_project <- project_omic(projectname = "My Lipid Data",
 #'                                datatype = "Lipidomics-Positive",
-#'                                edata = pmartRdata::lipid_edata_pos,
-#'                                fdata = pmartRdata::lipid_fdata_pos,
-#'                                edata_filename = "lipid_edata_pos",
-#'                                fdata_filename = "lipid_fdata_pos")
+#'                                edata = pmartRdata::lipid_pos_edata,
+#'                                fdata = pmartRdata::lipid_pos_fdata,
+#'                                edata_filename = "lipid_pos_edata",
+#'                                fdata_filename = "lipid_pos_fdata")
 #'                                
 #' # Make a proteomics project
 #' protein_project <- project_omic(projectname = "My Protein Data",
@@ -203,6 +204,15 @@ project_omic <- function(projectname, datatype, edata, fdata, emeta = NULL,
 #'                                 edata_filename = "pro_edata",
 #'                                 fdata_filename = "pro_fdata")
 #'                                 
+#'                                 
+#' # Make an RNA seq project 
+#' rna_project <- project_omic(projectname = "My RNA-Seq Data",
+#'                              datatype = "RNA-seq",
+#'                              edata = pmartRdata::rnaseq_edata,
+#'                              fdata = pmartRdata::rnaseq_fdata,
+#'                              edata_filename = "rnaseq_edata",
+#'                              fdata_filename = "rnaseq_fdata")
+#'                                 
 #' # Create an f_meta file
 #' fmeta <- data.frame(
 #'   "Proteins" = c(paste0("Mock", 1:3), paste0("Infection", c(1:4,6,7,9))),
@@ -210,8 +220,13 @@ project_omic <- function(projectname, datatype, edata, fdata, emeta = NULL,
 #'   "Metabolites" = c(paste0("Mock", 1:3), paste0("Infection", c(1:4,6,7,9)))
 #' )
 #'                           
-#' # Finally, make the ipmart midpoint object
-#' project_multiomics(projectname = "projects", objects = list(metab_project, lipid_project, protein_project))
+#' # Finally, make the ipmart midpoint object, with an fmeta file
+#' project_multiomics(projectname = "projects", objects = list(metab_project, lipid_project, protein_project), fmeta = fmeta)
+#' 
+#' # Make an ipmart midpoint object, but without fmeta. Note this specific example is for demo purposes only.
+#' # In practice, all data should be from the same experiment.
+#' project_multiomics(projectname = "project test", object = list(metab_project, lipid_project, protein_project, rna_project))
+#' 
 #' 
 #' # Or use the pmart_midpoint examples 
 #' project_multiomics(projectname = "midpoints", objects = list(pep_midpoint, lipid_midpoint))                          
@@ -269,18 +284,22 @@ project_multiomics <- function(projectname, objects, fmeta = NULL) {
     
   }) %>% unlist() %>% table() %>% c()
   
-  # Ensure there is at most 1 peptide/proteomics, 2 lipidomics, 1 metabolommics GC/LC-MS, 1 metabolomics NMR
+  # Ensure there is at most 1 peptide/proteomics, 2 lipidomics, 1 metabolommics GC/LC-MS, 1 metabolomics NMR,
+  # 1 transcriptomics 
   if ("Proteomics" %in% names(ProjectTypes) && ProjectTypes[["Proteomics"]] > 1) {
-    stop("ipmart cannot accept more than 1 proteomics (peptide or protein) dataset.")
+    stop("iPMart cannot accept more than 1 proteomics (peptide or protein) dataset.")
   }
   if ("Lipidomics" %in% names(ProjectTypes) && ProjectTypes[["Lipidomics"]] > 2) {
-    stop("ipmart cannot accept more than 2 lipidomics datasets.")
+    stop("iPMart cannot accept more than 2 lipidomics datasets.")
   }
   if ("Metabolomics-GC/LC-MS" %in% names(ProjectTypes) && ProjectTypes[["Metabolomics-GC/LC-MS"]] > 1) {
-    stop("ipmart cannot accept more than 1 metabolomics GC/LC-MS dataset.")
+    stop("iPMart cannot accept more than 1 metabolomics GC/LC-MS dataset.")
   }
   if ("Metabolomics-NMR" %in% names(ProjectTypes) && ProjectTypes[["Metabolomics-NMR"]] > 1) {
-    stop("ipmart cannot accept more than 1 metabolomics NMR dataset.")
+    stop("iPMart cannot accept more than 1 metabolomics NMR dataset.")
+  }
+  if ("RNA-seq" %in% names(ProjectTypes) && ProjectTypes[["RNA-seq"]] > 1) {
+    stop("iPMart cannot accept more than 1 RNA-seq dataset.")
   }
   
   # Load project objects
